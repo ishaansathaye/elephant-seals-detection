@@ -1,1 +1,5 @@
 roboflow
+PIL
+cv2
+numpy 
+pandas 
