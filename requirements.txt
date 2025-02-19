@@ -1,5 +1,5 @@
-roboflow
+inference_sdk
 PIL
-cv2
+io
 numpy 
 pandas 
