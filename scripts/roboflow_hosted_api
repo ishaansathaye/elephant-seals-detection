@@ -1,0 +1,15 @@
+from inference_sdk import InferenceHTTPClient
+
+client = InferenceHTTPClient(
+    api_url="https://detect.roboflow.com",
+    api_key="132cxQxyrOVmPD63wJrV"
+)
+
+result = client.run_workflow(
+    workspace_name="elephant-seals-project",
+    workflow_id="detect-and-classify",
+    images={
+        "image": "YOUR_IMAGE.jpg"
+    },
+    use_cache=True # cache workflow definition for 15 minutes
+)
