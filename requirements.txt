@@ -3,3 +3,5 @@ PIL
 io
 numpy 
 pandas 
+python-dotenv
+roboflow

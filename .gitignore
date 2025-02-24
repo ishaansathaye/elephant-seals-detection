@@ -172,3 +172,5 @@ cython_debug/
 
 *.DS_Store
 /data
+/scripts/mosaic/patches
+/scripts/mosaic/images
