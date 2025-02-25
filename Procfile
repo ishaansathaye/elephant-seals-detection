@@ -1,1 +1,1 @@
-web: gunicorn app:app
+web: gunicorn mosaic.app:app
