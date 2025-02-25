@@ -4,3 +4,4 @@ python-dotenv
 roboflow
 flask
 opencv-python
+gunicorn=20.1.0
