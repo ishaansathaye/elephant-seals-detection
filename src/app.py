@@ -13,7 +13,7 @@ from PIL import Image
 #   - Runs the pipeline
 #   - Returns (final_annotated_image, stats_dict)
 # stats_dict might have fields like { "num_patches": X, "total_seals": Y, ... }
-from mosaic_to_patches import process_mosaic_in_memory
+from mosaic_to_patches import process_mosaic_in_memory, open_and_downscale
 
 app = Flask(__name__)
 
@@ -159,7 +159,7 @@ def process():
         return "No selected file", 400
 
     try:
-        pil_image = Image.open(file.stream)
+        pil_image = open_and_downscale(file)
     except Exception as e:
         return f"Error opening image: {e}", 400
 

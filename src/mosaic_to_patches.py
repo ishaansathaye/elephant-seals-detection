@@ -9,6 +9,10 @@ import cv2
 Image.MAX_IMAGE_PIXELS = None
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
+def open_and_downscale(image_stream, max_size=(5000, 5000)):
+    image = Image.open(image_stream)
+    image.thumbnail(max_size, Image.Resampling.LANCZOS)
+    return image
 
 # Standardize the Background
 def standardize_background(image, bg_color=(255, 255, 255)):
@@ -176,6 +180,8 @@ def visualize_patches_downscaled(cropped_mosaic, patch_info, output_dir, max_dim
 
 # Main Processing Pipeline
 def process_mosaic_in_memory(image, patch_size=2000):
+    if image.format == "JPEG":
+        patch_size = 900
     # Standardize the background to ensure consistency (white background)
     print("Standardizing background...")
     sys.stdout.flush()
@@ -207,7 +213,7 @@ def process_mosaic_in_memory(image, patch_size=2000):
             patch_info.append((box, white_fraction, water_fraction))
 
     # Visualize patch boxes on the cropped mosaic
-    # visualize_patches_downscaled(cropped_mosaic, patch_info, output_dir)
+    visualize_patches_downscaled(cropped_mosaic, patch_info, output_dir="./patches")
 
     # Draw bounding boxes on the mosaic in memory
     print("Drawing bounding boxes...")
