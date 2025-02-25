@@ -1,4 +1,5 @@
 import os
+import sys
 import numpy as np
 from PIL import Image, ImageFile, ImageDraw, ImageFont
 # from roboflow import Roboflow
@@ -176,15 +177,23 @@ def visualize_patches_downscaled(cropped_mosaic, patch_info, output_dir, max_dim
 # Main Processing Pipeline
 def process_mosaic_in_memory(image_path, patch_size=2000):
     # Standardize the background to ensure consistency (white background)
+    print("Standardizing background...")
+    sys.stdout.flush()
     mosaic = standardize_background(mosaic)
 
     # Crop the mosaic to only include the actual content (non-white areas)
+    print("Cropping to content...")
+    sys.stdout.flush()
     cropped_mosaic = crop_to_content(mosaic)
 
     # Split into patches using a grid
+    print("Splitting into patches...")
+    sys.stdout.flush()
     patches = split_into_patches(cropped_mosaic, patch_size)
 
     # Filter valid patches
+    print("Filtering valid patches...")
+    sys.stdout.flush()
     valid_patches = []
     patch_info = []
     for i, (patch, box) in enumerate(patches):
@@ -201,6 +210,8 @@ def process_mosaic_in_memory(image_path, patch_size=2000):
     # visualize_patches_downscaled(cropped_mosaic, patch_info, output_dir)
 
     # Draw bounding boxes on the mosaic in memory
+    print("Drawing bounding boxes...")
+    sys.stdout.flush()
     mosaic_with_boxes = draw_patch_boxes(cropped_mosaic, patch_info)
 
     # Save valid patches
@@ -220,13 +231,12 @@ def process_mosaic_in_memory(image_path, patch_size=2000):
 
     # print(f"Total patches generated: {len(patches)}")
     # print(f"Valid patches (with content): {len(valid_patches)}")
-    return valid_patches, stats_dict
+    return mosaic_with_boxes, stats_dict
 
 
 # Example usage:
-if __name__ == "__main__":
+# if __name__ == "__main__":
     # image_path = "./images/DC Mosaic 2.18.23.tif"
     # image_path = "./images/AL Mosaic 2.16.23.png"
     # valid_patches = process_mosaic(
     #     image_path, patch_size=2500, output_dir="./patches")
-    pass
