@@ -118,7 +118,7 @@ def draw_patch_boxes(image, patch_info, color="yellow", width=10, text_color="or
     # Make a copy so you don't modify the original in memory
     drawn_image = image.copy()
     draw = ImageDraw.Draw(drawn_image)
-    font = ImageFont.truetype("./roboto.ttf", 350)
+    # font = ImageFont.truetype("./roboto.ttf", 350)
 
     for box in patch_info:
         box, white_frac, sand_frac = box
@@ -174,13 +174,8 @@ def visualize_patches_downscaled(cropped_mosaic, patch_info, output_dir, max_dim
         print(f"Saved full-resolution visualization to cropped_mosaic_with_patches.jpg")
 
 # Main Processing Pipeline
-def process_mosaic(image_path, patch_size=2000, output_dir="./patches"):
-    # Load image
-    print(f"Loading image from {image_path}")
-    mosaic = Image.open(image_path)
-
+def process_mosaic_in_memory(image_path, patch_size=2000):
     # Standardize the background to ensure consistency (white background)
-    print("Standardizing background...")
     mosaic = standardize_background(mosaic)
 
     # Crop the mosaic to only include the actual content (non-white areas)
@@ -201,25 +196,37 @@ def process_mosaic(image_path, patch_size=2000, output_dir="./patches"):
         if valid_white and not valid_water:
             valid_patches.append((patch, box))
             patch_info.append((box, white_fraction, water_fraction))
-            # print(f"Patch {i} is valid with fraction {fraction:.2f} being close to background.")
 
     # Visualize patch boxes on the cropped mosaic
-    visualize_patches_downscaled(cropped_mosaic, patch_info, output_dir)
+    # visualize_patches_downscaled(cropped_mosaic, patch_info, output_dir)
+
+    # Draw bounding boxes on the mosaic in memory
+    mosaic_with_boxes = draw_patch_boxes(cropped_mosaic, patch_info)
 
     # Save valid patches
-    for idx, (patch, box) in enumerate(valid_patches):
-        patch_filename = os.path.join(
-            output_dir, f"patch_{idx}_box_{box[0]}_{box[1]}_{box[2]}_{box[3]}.jpg")
-        patch.save(patch_filename)
+    # for idx, (patch, box) in enumerate(valid_patches):
+    #     patch_filename = os.path.join(
+    #         output_dir, f"patch_{idx}_box_{box[0]}_{box[1]}_{box[2]}_{box[3]}.jpg")
+    #     patch.save(patch_filename)
 
-    print(f"Total patches generated: {len(patches)}")
-    print(f"Valid patches (with content): {len(valid_patches)}")
-    return valid_patches
+    # Build Stats
+    stats_dict = {
+        "valid_patches": len(valid_patches),
+        "total_seals": 0,
+        "males": 0,
+        "females": 0,
+        "pups": 0
+    }
+
+    # print(f"Total patches generated: {len(patches)}")
+    # print(f"Valid patches (with content): {len(valid_patches)}")
+    return valid_patches, stats_dict
 
 
 # Example usage:
 if __name__ == "__main__":
     # image_path = "./images/DC Mosaic 2.18.23.tif"
-    image_path = "./images/AL Mosaic 2.16.23.png"
-    valid_patches = process_mosaic(
-        image_path, patch_size=2500, output_dir="./patches")
+    # image_path = "./images/AL Mosaic 2.16.23.png"
+    # valid_patches = process_mosaic(
+    #     image_path, patch_size=2500, output_dir="./patches")
+    pass
