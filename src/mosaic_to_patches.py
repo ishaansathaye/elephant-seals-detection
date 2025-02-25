@@ -175,11 +175,11 @@ def visualize_patches_downscaled(cropped_mosaic, patch_info, output_dir, max_dim
         print(f"Saved full-resolution visualization to cropped_mosaic_with_patches.jpg")
 
 # Main Processing Pipeline
-def process_mosaic_in_memory(image_path, patch_size=2000):
+def process_mosaic_in_memory(image, patch_size=2000):
     # Standardize the background to ensure consistency (white background)
     print("Standardizing background...")
     sys.stdout.flush()
-    mosaic = standardize_background(mosaic)
+    mosaic = standardize_background(image)
 
     # Crop the mosaic to only include the actual content (non-white areas)
     print("Cropping to content...")
