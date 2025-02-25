@@ -159,7 +159,7 @@ def process():
         return "No selected file", 400
 
     try:
-        pil_image = open_and_downscale(file)
+        pil_image = Image.open(file)
     except Exception as e:
         return f"Error opening image: {e}", 400
 

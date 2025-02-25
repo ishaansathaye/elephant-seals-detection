@@ -9,11 +9,6 @@ import cv2
 Image.MAX_IMAGE_PIXELS = None
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
-def open_and_downscale(image_stream, max_size=(5000, 5000)):
-    image = Image.open(image_stream)
-    image.thumbnail(max_size, Image.Resampling.LANCZOS)
-    return image
-
 # Standardize the Background
 def standardize_background(image, bg_color=(255, 255, 255)):
     """
