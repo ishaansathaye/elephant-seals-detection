@@ -1,23 +1,14 @@
-# app.py
-import os
 import io
 import base64
-import uuid
+import sys
 from datetime import datetime
-
 from flask import Flask, request, render_template_string
 from PIL import Image
-
-# We'll assume your mosaic_to_patches module has a function that:
-#   - Takes a PIL image
-#   - Runs the pipeline
-#   - Returns (final_annotated_image, stats_dict)
-# stats_dict might have fields like { "num_patches": X, "total_seals": Y, ... }
-from mosaic_to_patches import process_mosaic_in_memory, open_and_downscale
+from mosaic_to_patches import process_mosaic_in_memory, process_cropped_image
 
 app = Flask(__name__)
 
-# A global list storing each upload's stats
+# Global stats table (in-memory)
 stats_table = []
 
 HTML_TEMPLATE = """
@@ -27,24 +18,76 @@ HTML_TEMPLATE = """
     <title>Elephant Seal Detector</title>
     <style>
       body {
-        font-family: Arial, sans-serif;
-        margin: 20px;
-        background-color: #f9f9f9;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        margin: 0;
+        padding: 0;
+        background-color: #f1f1f1;
       }
       .container {
-        max-width: 1000px;
-        margin: 0 auto;
-        padding: 20px;
+        max-width: 900px;
+        margin: 40px auto;
+        padding: 30px;
         background: #fff;
-        border-radius: 8px;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        border-radius: 10px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
       }
       h1, h2, h3 {
         text-align: center;
+        margin-bottom: 20px;
+        color: #333;
+      }
+      p {
+        text-align: center;
+        color: #555;
       }
       .upload-section {
         text-align: center;
         margin-bottom: 20px;
+      }
+      .toggle-section {
+        text-align: center;
+        margin-bottom: 20px;
+      }
+      /* Toggle switch styling */
+      .switch {
+        position: relative;
+        display: inline-block;
+        width: 60px;
+        height: 34px;
+        vertical-align: middle;
+      }
+      .switch input {
+        display: none;
+      }
+      .slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background-color: #ccc;
+        transition: .4s;
+        border-radius: 34px;
+      }
+      .slider:before {
+        position: absolute;
+        content: "";
+        height: 26px;
+        width: 26px;
+        left: 4px;
+        bottom: 4px;
+        background-color: white;
+        transition: .4s;
+        border-radius: 50%;
+      }
+      input:checked + .slider {
+        background-color: #2196F3;
+      }
+      input:checked + .slider:before {
+        transform: translateX(26px);
+      }
+      #toggleLabel {
+        font-size: 1.1em;
+        margin-left: 10px;
+        vertical-align: middle;
       }
       #loading-message {
         display: none;
@@ -57,30 +100,47 @@ HTML_TEMPLATE = """
         display: block;
         margin: 20px auto;
         max-width: 100%;
-        height: auto;
         border: 1px solid #ccc;
+        border-radius: 5px;
       }
       .notice {
-        color: #666;
+        color: #777;
         font-size: 0.9em;
         text-align: center;
-        margin-top: 5px;
       }
       table {
         width: 100%;
         border-collapse: collapse;
-        margin-top: 20px;
+        margin-top: 30px;
       }
       th, td {
-        padding: 8px 12px;
+        padding: 10px;
         border: 1px solid #ddd;
         text-align: center;
       }
       th {
-        background-color: #f2f2f2;
+        background-color: #f7f7f7;
       }
     </style>
     <script>
+      // On page load, restore toggle state from localStorage
+      window.addEventListener("DOMContentLoaded", () => {
+        const mode = localStorage.getItem("processingMode") || "mosaic";
+        const checkbox = document.getElementById("mosaicToggle");
+        checkbox.checked = (mode === "mosaic");
+        updateToggleLabel(checkbox.checked);
+      });
+      // Update label text based on toggle state
+      function updateToggleLabel(isMosaic) {
+        const label = document.getElementById("toggleLabel");
+        label.innerText = isMosaic ? "Processing as Mosaic" : "Processing as Cropped Image";
+      }
+      // When toggle is changed, update localStorage and label
+      function toggleChanged(checkbox) {
+        const mode = checkbox.checked ? "mosaic" : "cropped";
+        localStorage.setItem("processingMode", mode);
+        updateToggleLabel(checkbox.checked);
+      }
       function showLoading() {
         document.getElementById('loading-message').style.display = 'block';
       }
@@ -89,28 +149,32 @@ HTML_TEMPLATE = """
   <body>
     <div class="container">
       <h1>Elephant Seal Detector</h1>
-      <p style="text-align:center; color:#555;">
-        Upload your mosaic image (TIF, PNG, or JPG) to detect seals. 
-      </p>
+      <p>Upload your image to detect seals.</p>
       
       <div class="upload-section">
         <form method="post" enctype="multipart/form-data" action="/process" onsubmit="showLoading()">
           <input type="file" name="image" required>
           <br/><br/>
+          <!-- Toggle placed inside the form so its value is submitted -->
+          <div class="toggle-section">
+            <label class="switch">
+              <input type="checkbox" id="mosaicToggle" name="mosaic_mode" onchange="toggleChanged(this)">
+              <span class="slider"></span>
+            </label>
+            <span id="toggleLabel">Processing as Mosaic</span>
+          </div>
           <input type="submit" value="Upload" style="padding: 8px 16px; cursor: pointer;">
         </form>
         <p class="notice">* Larger files may take a while to process</p>
-        <div id="loading-message">
-          Processing your mosaic, please wait...
-        </div>
+        <div id="loading-message">Processing your image, please wait...</div>
       </div>
       
       {% if image_data %}
-        <h2>Processed Mosaic</h2>
-        <img class="processed-image" src="data:image/jpeg;base64,{{ image_data }}" alt="Processed Mosaic">
+        <h2>Processed Image</h2>
+        <img class="processed-image" src="data:image/jpeg;base64,{{ image_data }}" alt="Processed Image">
       {% endif %}
       
-      <h3 style="margin-top: 40px;">Upload History</h3>
+      <h3>Upload History</h3>
       {% if stats_table and stats_table|length > 0 %}
       <table>
         <thead>
@@ -159,16 +223,20 @@ def process():
         return "No selected file", 400
 
     try:
-        pil_image = Image.open(file)
+        pil_image = Image.open(file.stream)
     except Exception as e:
         return f"Error opening image: {e}", 400
 
-    # Run your mosaic pipeline entirely in memory:
-    #   final_image: PIL image with bounding boxes
-    #   stats: dict with e.g. {"num_patches": 50, "total_seals": 42, "male": 15, "female": 20, "pup": 7}
-    final_image, stats = process_mosaic_in_memory(pil_image)
+    # Determine mode: if mosaic_mode checkbox is present, it means it's checked (mosaic mode).
+    mode = "mosaic" if request.form.get("mosaic_mode") is not None else "cropped"
+    print("Mode is:", mode)
+    sys.stdout.flush()
 
-    # Build a stats record
+    if mode == "mosaic":
+        final_image, stats = process_mosaic_in_memory(pil_image)
+    else:
+        final_image, stats = process_cropped_image(pil_image)
+
     new_stats = {
         "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "filename": file.filename,
@@ -180,10 +248,9 @@ def process():
     }
     stats_table.append(new_stats)
 
-    # Convert final_image to base64
+    buf = io.BytesIO()
     final_image = final_image.convert("RGB")
     final_image.thumbnail((2000, 2000), Image.Resampling.LANCZOS)
-    buf = io.BytesIO()
     final_image.save(buf, format="JPEG", quality=75)
     buf.seek(0)
     img_bytes = buf.getvalue()
