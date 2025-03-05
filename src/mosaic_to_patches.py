@@ -180,8 +180,8 @@ def process_cropped_image(image):
     total_seals += seal_count
 
     stats_dict = {
-        "valid_patches": 0,
-        "total_seals": total_seals,
+        "clumps": clump_count,
+        "seals": total_seals,
         "males": 0,
         "females": 0,
         "pups": 0
@@ -192,59 +192,3 @@ def process_cropped_image(image):
     # Clean up the temporary file
     os.remove(temp_image_path)
     return image, stats_dict
-# import requests
-# def process_cropped_image(image):
-#     """
-#     Process a cropped (small) image using Roboflow inference.
-#     This function saves the image temporarily, sends it to the Roboflow model,
-#     downloads the resulting annotated image from the returned URL,
-#     and returns that image along with dummy statistics.
-#     """
-#     api_key = os.environ.get("ROBOFLOW_API_KEY")
-#     if not api_key:
-#         raise Exception("ROBOFLOW_API_KEY environment variable not set")
-#     rf = Roboflow(api_key=api_key)
-#     project = rf.workspace().project("elephant-seals-project-mark-1")
-#     model = project.version("14").model
-
-#     # Save the image to a temporary file
-#     temp_image_path = "temp_image.jpg"
-#     image.save(temp_image_path)
-
-#     # Run prediction using Roboflow
-#     result = model.predict(temp_image_path, confidence=25, overlap=30)
-    
-#     # Extract the URL for the annotated image from the JSON response
-#     result_json = result.json()
-#     print(result.plot())
-#     annotated_image_url = result_json.get("image_path")
-#     if not annotated_image_url:
-#         os.remove(temp_image_path)
-#         raise Exception("Annotated image URL not returned from Roboflow.")
-
-#     # Download the annotated image using requests
-#     response = requests.get(annotated_image_url)
-#     if response.status_code != 200:
-#         os.remove(temp_image_path)
-#         raise Exception(f"Failed to download annotated image, status code: {response.status_code}")
-    
-#     final_image = Image.open(io.BytesIO(response.content))
-
-#     # Count predictions by class
-#     output_dict = result_json.get("predictions", [])
-#     clump_count = sum(1 for pred in output_dict if pred["class"] == "clump")
-#     seal_count = sum(1 for pred in output_dict if pred["class"] == "seals")
-
-#     stats_dict = {
-#         "valid_patches": 0,
-#         "total_seals": seal_count,
-#         "males": 0,
-#         "females": 0,
-#         "pups": 0
-#     }
-    
-#     print(f"Total clumps: {clump_count}, Total seals: {seal_count}")
-    
-#     # Clean up the temporary file
-#     os.remove(temp_image_path)
-#     return final_image, stats_dict

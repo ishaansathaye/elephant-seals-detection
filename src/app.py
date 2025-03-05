@@ -181,8 +181,8 @@ HTML_TEMPLATE = """
           <tr>
             <th>Timestamp</th>
             <th>Filename</th>
-            <th># Patches</th>
-            <th>Total Seals</th>
+            <th># Clumps</th>
+            <th># Seals</th>
             <th>Male</th>
             <th>Female</th>
             <th>Pup</th>
@@ -193,8 +193,8 @@ HTML_TEMPLATE = """
           <tr>
             <td>{{ row.timestamp }}</td>
             <td>{{ row.filename }}</td>
-            <td>{{ row.num_patches }}</td>
-            <td>{{ row.total_seals }}</td>
+            <td>{{ row.clumps }}</td>
+            <td>{{ row.seals }}</td>
             <td>{{ row.male }}</td>
             <td>{{ row.female }}</td>
             <td>{{ row.pup }}</td>
@@ -240,8 +240,8 @@ def process():
     new_stats = {
         "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "filename": file.filename,
-        "num_patches": stats.get("valid_patches", 0),
-        "total_seals": stats.get("total_seals", 0),
+        "clumps": stats.get("clumps", 0),
+        "seals": stats.get("seals", 0),
         "male": stats.get("males", 0),
         "female": stats.get("females", 0),
         "pup": stats.get("pups", 0)
