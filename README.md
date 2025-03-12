@@ -38,6 +38,13 @@ Check our our CLI tool for model building and evaluation:
 
 ---
 
+Upload API Key (personal key from roboflow)
+1. create a .env file in repository
+2. Add to the file `ROBOFLOW_API_KEY={YOUR API KEY HERE}`
+3. Save the file
+
+Initializing 
+
 ```bash
 # Clone the repository
 git clone https://github.com/yourusername/elephant-seals-detection.git
