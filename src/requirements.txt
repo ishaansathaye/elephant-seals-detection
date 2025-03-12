@@ -1,7 +1,9 @@
-numpy 
-pandas 
+numpy==2.2.3
+pandas==2.2.3
 python-dotenv
-roboflow
+roboflow==1.1.56
 flask
 opencv-python
 gunicorn==20.1.0
+joblib==1.4.2
+scikit-learn==1.6.1

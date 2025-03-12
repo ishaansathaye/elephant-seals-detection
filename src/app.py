@@ -4,19 +4,32 @@ import sys
 from datetime import datetime
 from flask import Flask, request, render_template_string
 from PIL import Image
-from mosaic_to_patches import process_mosaic_in_memory, process_cropped_image
+from process import process_mosaic_in_memory, process_cropped_image
 
 app = Flask(__name__)
 
-# Global stats table (in-memory)
+# In-memory storage for stats and processed images
 stats_table = []
+processed_images = []
 
 HTML_TEMPLATE = """
 <!doctype html>
 <html>
   <head>
     <title>Elephant Seal Detector</title>
+    
+    <!-- Bootstrap CSS -->
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <!-- Bootstrap Bundle with Popper -->
+    <script
+      src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"
+    ></script>
+
     <style>
+      /* Basic page styling */
       body {
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         margin: 0;
@@ -48,6 +61,7 @@ HTML_TEMPLATE = """
         text-align: center;
         margin-bottom: 20px;
       }
+
       /* Toggle switch styling */
       .switch {
         position: relative;
@@ -96,13 +110,15 @@ HTML_TEMPLATE = """
         margin-top: 10px;
         text-align: center;
       }
-      .processed-image {
-        display: block;
-        margin: 20px auto;
-        max-width: 100%;
-        border: 1px solid #ccc;
-        border-radius: 5px;
+
+      /* Carousel styling overrides */
+      .carousel-item img {
+        width: 100%;
+        height: auto;
+        max-height: 600px; /* adjust as needed */
+        object-fit: cover; /* or 'contain' if you prefer letterboxing */
       }
+
       .notice {
         color: #777;
         font-size: 0.9em;
@@ -141,6 +157,7 @@ HTML_TEMPLATE = """
         localStorage.setItem("processingMode", mode);
         updateToggleLabel(checkbox.checked);
       }
+      // Show a loading message
       function showLoading() {
         document.getElementById('loading-message').style.display = 'block';
       }
@@ -149,11 +166,12 @@ HTML_TEMPLATE = """
   <body>
     <div class="container">
       <h1>Elephant Seal Detector</h1>
-      <p>Upload your image to detect seals.</p>
+      <p>Upload your image(s) to detect seals.</p>
       
       <div class="upload-section">
         <form method="post" enctype="multipart/form-data" action="/process" onsubmit="showLoading()">
-          <input type="file" name="image" required>
+          <!-- multiple file input -->
+          <input type="file" name="image" multiple required>
           <br/><br/>
           <!-- Toggle placed inside the form so its value is submitted -->
           <div class="toggle-section">
@@ -166,14 +184,47 @@ HTML_TEMPLATE = """
           <input type="submit" value="Upload" style="padding: 8px 16px; cursor: pointer;">
         </form>
         <p class="notice">* Larger files may take a while to process</p>
-        <div id="loading-message">Processing your image, please wait...</div>
+        <div id="loading-message">Processing your image(s), please wait...</div>
       </div>
       
       {% if image_data %}
-        <h2>Processed Image</h2>
-        <img class="processed-image" src="data:image/jpeg;base64,{{ image_data }}" alt="Processed Image">
+        <h2>Processed Images</h2>
+        <!-- Bootstrap Carousel -->
+        <div id="processedCarousel" class="carousel slide mx-auto" style="max-width: 100%;" data-bs-ride="carousel">
+          <!-- Indicators -->
+          <div class="carousel-indicators">
+            {% for img in image_data %}
+              <button
+                type="button"
+                data-bs-target="#processedCarousel"
+                data-bs-slide-to="{{ loop.index0 }}"
+                class="{% if loop.index0 == 0 %}active{% endif %}"
+                aria-current="{% if loop.index0 == 0 %}true{% else %}false{% endif %}"
+                aria-label="Slide {{ loop.index0 }}"
+              ></button>
+            {% endfor %}
+          </div>
+          <!-- Slides -->
+          <div class="carousel-inner">
+            {% for img in image_data %}
+              <div class="carousel-item {% if loop.index0 == 0 %}active{% endif %}">
+                <img src="data:image/jpeg;base64,{{ img }}" alt="Slide {{ loop.index0 }}">
+              </div>
+            {% endfor %}
+          </div>
+          <!-- Controls -->
+          <button class="carousel-control-prev" type="button" data-bs-target="#processedCarousel" data-bs-slide="prev">
+            <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+            <span class="visually-hidden">Previous</span>
+          </button>
+          <button class="carousel-control-next" type="button" data-bs-target="#processedCarousel" data-bs-slide="next">
+            <span class="carousel-control-next-icon" aria-hidden="true"></span>
+            <span class="visually-hidden">Next</span>
+          </button>
+        </div>
       {% endif %}
       
+    <div style="margin-top: 30px;"></div>
       <h3>Upload History</h3>
       {% if stats_table and stats_table|length > 0 %}
       <table>
@@ -181,7 +232,6 @@ HTML_TEMPLATE = """
           <tr>
             <th>Timestamp</th>
             <th>Filename</th>
-            <th># Clumps</th>
             <th># Seals</th>
             <th>Male</th>
             <th>Female</th>
@@ -193,7 +243,6 @@ HTML_TEMPLATE = """
           <tr>
             <td>{{ row.timestamp }}</td>
             <td>{{ row.filename }}</td>
-            <td>{{ row.clumps }}</td>
             <td>{{ row.seals }}</td>
             <td>{{ row.male }}</td>
             <td>{{ row.female }}</td>
@@ -210,57 +259,78 @@ HTML_TEMPLATE = """
 </html>
 """
 
+
 @app.route("/", methods=["GET"])
 def index():
-    return render_template_string(HTML_TEMPLATE, stats_table=stats_table)
+    # Render the page with the existing stats_table and processed_images
+    return render_template_string(
+        HTML_TEMPLATE,
+        stats_table=stats_table,
+        image_data=processed_images
+    )
+
 
 @app.route("/process", methods=["POST"])
 def process():
     if "image" not in request.files:
         return "No file part", 400
-    file = request.files["image"]
-    if file.filename == "":
-        return "No selected file", 400
+    files = request.files.getlist("image")
+    if not files or files[0].filename == "":
+        return "No selected file(s)", 400
 
-    try:
-        pil_image = Image.open(file.stream)
-    except Exception as e:
-        return f"Error opening image: {e}", 400
-
-    # Determine mode: if mosaic_mode checkbox is present, it means it's checked (mosaic mode).
-    mode = "mosaic" if request.form.get("mosaic_mode") is not None else "cropped"
+    # Determine mosaic or cropped mode
+    mode = "mosaic" if request.form.get(
+        "mosaic_mode") is not None else "cropped"
     print("Mode is:", mode)
     sys.stdout.flush()
 
-    if mode == "mosaic":
-        final_image, stats = process_mosaic_in_memory(pil_image)
-    else:
-        final_image, stats = process_cropped_image(pil_image)
+    # We'll store the new images from this batch in a local list
+    image_data_list = []
 
-    new_stats = {
-        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "filename": file.filename,
-        "clumps": stats.get("clumps", 0),
-        "seals": stats.get("seals", 0),
-        "male": stats.get("males", 0),
-        "female": stats.get("females", 0),
-        "pup": stats.get("pups", 0)
-    }
-    stats_table.append(new_stats)
+    for file in files:
+        try:
+            pil_image = Image.open(file.stream)
+        except Exception as e:
+            return f"Error opening image: {e}", 400
 
-    buf = io.BytesIO()
-    final_image = final_image.convert("RGB")
-    final_image.thumbnail((2000, 2000), Image.Resampling.LANCZOS)
-    final_image.save(buf, format="JPEG", quality=75)
-    buf.seek(0)
-    img_bytes = buf.getvalue()
-    img_base64 = base64.b64encode(img_bytes).decode("utf-8")
+        if mode == "mosaic":
+            # processed_image, stats = process_mosaic_in_memory(pil_image)
+            pass
+        else:
+            processed_image, stats = process_cropped_image(pil_image)
+
+        # Insert stats at the beginning so newest appear at the top
+        new_stats = {
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "filename": file.filename,
+            "seals": stats.get("seals", 0),
+            "male": stats.get("males", 0),
+            "female": stats.get("females", 0),
+            "pup": stats.get("pups", 0)
+        }
+        stats_table.insert(0, new_stats)
+
+        # Convert processed image to base64
+        buf = io.BytesIO()
+        processed_image = processed_image.convert("RGB")
+        processed_image.thumbnail((2000, 2000), Image.Resampling.LANCZOS)
+        processed_image.save(buf, format="JPEG", quality=75)
+        buf.seek(0)
+        img_bytes = buf.getvalue()
+        img_b64 = base64.b64encode(img_bytes).decode("utf-8")
+        image_data_list.append(img_b64)
+
+    # Update the global processed_images with the new images
+    # Keep old images too, then extend instead of replace
+    global processed_images
+    processed_images = image_data_list
 
     return render_template_string(
         HTML_TEMPLATE,
-        image_data=img_base64,
+        image_data=processed_images,
         stats_table=stats_table
     )
+
 
 if __name__ == "__main__":
     app.run(debug=True)
