@@ -1,16 +1,61 @@
-# Elephant Seals Image Detection
+# Elephant Seals Image Detection Web App
 
-## Virtual Environment Setup
-1. Create a virtual environment
+<p align="center">
+    <img src="./images/app.png" alt="Elephant Seals Detection App">
+</p>
+
+## Overview
+
+This web application is designed to detect elephant seals in images using machine learning models. The app provides a user-friendly interface for uploading images and visualizing detection results.
+
+## Features
+
+- Image upload functionality
+- Drone image elephant seal detection
+- Visualization of detection results (future feature)
+- User-friendly interface
+
+## Deployment
+
+- Currently deployed on Free Tier of Render:
+  - [Elephant Seals Detection App](https://elephant-seals-detection.onrender.com)
+
+  ## CLI Tool
+
+Check our our CLI tool for model building and evaluation:
+- [Elephant Seals CLI Tool](https://github.com/brandonhjkim/elephant-seals-CLI)
+
+## Technologies Used
+
+- Frontend: HTML, CSS, JavaScript
+- Backend: Python (Flask/Django)
+- ML Framework: Roboflow, Scikit-learn
+- Future Technologies:
+    - Frontend: React.js
+    - Containerization: Docker
+
+## Installation
+
 ```bash
-python3 -m venv env
-```
-2. Activate the virtual environment
-```bash
-source env/bin/activate
-```
-3. Install the required packages
-```bash
+# Clone the repository
+git clone https://github.com/yourusername/elephant-seals-detection.git
+
+# Navigate to the project directory
+cd elephant-seals-detection
+
+# Install dependencies
 pip install -r requirements.txt
+
+# Run the application
+python src/app.py
 ```
 
+## Usage
+
+1. Start the application
+2. Upload an image containing elephant seals
+3. View the detection results
+
+## Contributing
+
+Contributions are welcome, however this project is currently not accepting pull requests. If you have suggestions or improvements, please open an issue.

@@ -1,6 +1,0 @@
-numpy 
-pandas 
-python-dotenv
-roboflow
-flask
-opencv-python
