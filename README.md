@@ -51,12 +51,12 @@ If you don't have Python installed:
 
 ---
 
-Upload API Key (personal key from roboflow)
+First, Upload your API Key (personal key from roboflow)
 1. create a .env file in repository
 2. Add to the file `ROBOFLOW_API_KEY={YOUR API KEY HERE}`
 3. Save the file
 
-Initializing 
+To Initialize and run for the first time... 
 
 ```bash
 # Clone the repository
