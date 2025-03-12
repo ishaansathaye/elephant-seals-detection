@@ -53,8 +53,11 @@ python -m venv .venv
 # Install dependencies
 pip install -r requirements.txt
 
+# Enter src file
+cd src
+
 # Run the application
-python src/app.py
+python app.py
 ```
 
 ## Usage
