@@ -1,16 +1,18 @@
 import io, os
 import base64
 import sys
+import csv
 from datetime import datetime
-from flask import Flask, request, render_template_string
+from flask import Flask, request, render_template_string, Response
 from PIL import Image
 from process import process_mosaic_in_memory, process_cropped_image
 from roboflow import Roboflow
 
 app = Flask(__name__)
 
-# In-memory storage for stats and processed images
+# Global stats table (in-memory) as a list of dictionaries
 stats_table = []
+# Global list for processed images (each entry is a base64 string)
 processed_images = []
 
 HTML_TEMPLATE = """
@@ -30,7 +32,6 @@ HTML_TEMPLATE = """
     ></script>
 
     <style>
-      /* Basic page styling */
       body {
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         margin: 0;
@@ -62,7 +63,6 @@ HTML_TEMPLATE = """
         text-align: center;
         margin-bottom: 20px;
       }
-
       /* Toggle switch styling */
       .switch {
         position: relative;
@@ -77,7 +77,10 @@ HTML_TEMPLATE = """
       .slider {
         position: absolute;
         cursor: pointer;
-        top: 0; left: 0; right: 0; bottom: 0;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
         background-color: #ccc;
         transition: .4s;
         border-radius: 34px;
@@ -111,15 +114,13 @@ HTML_TEMPLATE = """
         margin-top: 10px;
         text-align: center;
       }
-
       /* Carousel styling overrides */
       .carousel-item img {
         width: 100%;
         height: auto;
         max-height: 600px; /* adjust as needed */
-        object-fit: cover; /* or 'contain' if you prefer letterboxing */
+        object-fit: cover;
       }
-
       .notice {
         color: #777;
         font-size: 0.9em;
@@ -137,6 +138,10 @@ HTML_TEMPLATE = """
       }
       th {
         background-color: #f7f7f7;
+      }
+      .download-btn {
+        margin: 20px auto;
+        display: block;
       }
     </style>
     <script>
@@ -158,7 +163,6 @@ HTML_TEMPLATE = """
         localStorage.setItem("processingMode", mode);
         updateToggleLabel(checkbox.checked);
       }
-      // Show a loading message
       function showLoading() {
         document.getElementById('loading-message').style.display = 'block';
       }
@@ -171,10 +175,9 @@ HTML_TEMPLATE = """
       
       <div class="upload-section">
         <form method="post" enctype="multipart/form-data" action="/process" onsubmit="showLoading()">
-          <!-- multiple file input -->
           <input type="file" name="image" multiple required>
           <br/><br/>
-          <!-- Toggle placed inside the form so its value is submitted -->
+          <!-- Toggle inside the form -->
           <div class="toggle-section">
             <label class="switch">
               <input type="checkbox" id="mosaicToggle" name="mosaic_mode" onchange="toggleChanged(this)">
@@ -182,7 +185,7 @@ HTML_TEMPLATE = """
             </label>
             <span id="toggleLabel">Processing as Mosaic</span>
           </div>
-          <input type="submit" value="Upload" style="padding: 8px 16px; cursor: pointer;">
+          <input type="submit" value="Upload" class="btn btn-primary" style="padding: 8px 16px; cursor: pointer;">
         </form>
         <p class="notice">* Larger files may take a while to process</p>
         <div id="loading-message">Processing your image(s), please wait...</div>
@@ -190,19 +193,15 @@ HTML_TEMPLATE = """
       
       {% if image_data %}
         <h2>Processed Images</h2>
-        <!-- Bootstrap Carousel -->
-        <div id="processedCarousel" class="carousel slide mx-auto" style="max-width: 100%;" data-bs-ride="carousel">
+        <!-- Bootstrap Carousel (without auto-cycling) -->
+        <div id="processedCarousel" class="carousel slide mx-auto" style="max-width: 100%;">
           <!-- Indicators -->
           <div class="carousel-indicators">
             {% for img in image_data %}
-              <button
-                type="button"
-                data-bs-target="#processedCarousel"
-                data-bs-slide-to="{{ loop.index0 }}"
+              <button type="button" data-bs-target="#processedCarousel" data-bs-slide-to="{{ loop.index0 }}"
                 class="{% if loop.index0 == 0 %}active{% endif %}"
                 aria-current="{% if loop.index0 == 0 %}true{% else %}false{% endif %}"
-                aria-label="Slide {{ loop.index0 }}"
-              ></button>
+                aria-label="Slide {{ loop.index0 }}"></button>
             {% endfor %}
           </div>
           <!-- Slides -->
@@ -224,9 +223,13 @@ HTML_TEMPLATE = """
           </button>
         </div>
       {% endif %}
-      
+    
+    
     <div style="margin-top: 30px;"></div>
       <h3>Upload History</h3>
+      <div style="margin-top: 30px; text-align: center;">
+        <a href="/download" class="btn btn-success download-btn">Download Upload History as CSV</a>
+      </div>
       {% if stats_table and stats_table|length > 0 %}
       <table>
         <thead>
@@ -260,20 +263,17 @@ HTML_TEMPLATE = """
 </html>
 """
 
-
 @app.route("/", methods=["GET"])
 def index():
-    # Render the page with the existing stats_table and processed_images
     return render_template_string(
         HTML_TEMPLATE,
         stats_table=stats_table,
         image_data=processed_images
     )
 
-
 @app.route("/process", methods=["POST"])
 def process():
-    # Initialize Roboflow
+        # Initialize Roboflow
     api_key = os.environ.get("ROBOFLOW_API_KEY")
     if not api_key:
         raise Exception("ROBOFLOW_API_KEY environment variable is not set.")
@@ -281,21 +281,18 @@ def process():
     project = rf.workspace().project("elephant-seals-project-mark-1")
     model = project.version("14").model
 
+
     if "image" not in request.files:
         return "No file part", 400
     files = request.files.getlist("image")
     if not files or files[0].filename == "":
         return "No selected file(s)", 400
 
-    # Determine mosaic or cropped mode
-    mode = "mosaic" if request.form.get(
-        "mosaic_mode") is not None else "cropped"
+    mode = "mosaic" if request.form.get("mosaic_mode") is not None else "cropped"
     print("Mode is:", mode)
     sys.stdout.flush()
 
-    # We'll store the new images from this batch in a local list
     image_data_list = []
-
     for file in files:
         try:
             pil_image = Image.open(file.stream)
@@ -303,12 +300,11 @@ def process():
             return f"Error opening image: {e}", 400
 
         if mode == "mosaic":
-            # processed_image, stats = process_mosaic_in_memory(pil_image)
+            # final_image, stats = process_mosaic_in_memory(pil_image)
             pass
         else:
-            processed_image, stats = process_cropped_image(pil_image, model)
+            final_image, stats = process_cropped_image(pil_image, model)
 
-        # Insert stats at the beginning so newest appear at the top
         new_stats = {
             "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "filename": file.filename,
@@ -319,18 +315,15 @@ def process():
         }
         stats_table.insert(0, new_stats)
 
-        # Convert processed image to base64
         buf = io.BytesIO()
-        processed_image = processed_image.convert("RGB")
-        processed_image.thumbnail((2000, 2000), Image.Resampling.LANCZOS)
-        processed_image.save(buf, format="JPEG", quality=75)
+        final_image = final_image.convert("RGB")
+        final_image.thumbnail((2000, 2000), Image.Resampling.LANCZOS)
+        final_image.save(buf, format="JPEG", quality=75)
         buf.seek(0)
         img_bytes = buf.getvalue()
         img_b64 = base64.b64encode(img_bytes).decode("utf-8")
         image_data_list.append(img_b64)
 
-    # Update the global processed_images with the new images
-    # Keep old images too, then extend instead of replace
     global processed_images
     processed_images = image_data_list
 
@@ -340,6 +333,24 @@ def process():
         stats_table=stats_table
     )
 
+@app.route("/download", methods=["GET"])
+def download():
+    # Create a CSV from stats_table
+    si = io.StringIO()
+    fieldnames = ["timestamp", "filename", "seals", "male", "female", "pup"]
+    writer = csv.DictWriter(si, fieldnames=fieldnames)
+    writer.writeheader()
+    for row in stats_table:
+        writer.writerow(row)
+    output = si.getvalue()
+    si.close()
+
+    # Return CSV as a downloadable file
+    return Response(
+        output,
+        mimetype="text/csv",
+        headers={"Content-Disposition": "attachment;filename=upload_history.csv"}
+    )
 
 if __name__ == "__main__":
     app.run(debug=True)
