@@ -22,7 +22,7 @@ This web application is designed to detect elephant seals in images using machin
 
   ## CLI Tool
 
-Check our our CLI tool for model building and evaluation:
+Check out our CLI tool for model building and evaluation:
 - [Elephant Seals CLI Tool](https://github.com/brandonhjkim/elephant-seals-CLI)
 
 ## Technologies Used
