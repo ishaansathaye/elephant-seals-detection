@@ -300,7 +300,7 @@ def process_cropped_image(image):
     clump_imgs_dct, ind_seals_dct = get_indivs_and_clumps(
         model, paths, seal_conf_lvl=20, clump_conf_lvl=40, overlap=20)
     
-    clumps = {key: value for key, value in clump_imgs_dct.items() if len(value) >= 10}
+    clump_imgs_dct = {key: value for key, value in clump_imgs_dct.items() if len(value) >= 10}
 
     # Get heuristics from the clump images
     if clump_imgs_dct:
