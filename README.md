@@ -36,6 +36,19 @@ Check our our CLI tool for model building and evaluation:
 
 ## Installation
 
+If you don't have Python installed:
+
+1. Visit the official Python website: [https://www.python.org/downloads/](https://www.python.org/downloads/)
+2. Download a version within **3.8 to 3.12** for your operating system 
+3. Run the installer and **check the box** that says `Add Python to PATH` before clicking `Install Now`.
+4. Verify the installation:
+   - Open a terminal (Command Prompt, PowerShell, or Terminal)
+   - Type:
+     ```sh
+     python --version
+     ```
+   - You should see something like `Python 3.x.x` (where `x.x` is your version).
+
 ---
 
 Upload API Key (personal key from roboflow)
