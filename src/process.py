@@ -3,7 +3,6 @@ import sys
 import numpy as np
 from PIL import Image, ImageFile, ImageDraw, ImageFont
 import cv2
-from roboflow import Roboflow
 from pathlib import Path
 import requests
 from collections import Counter
@@ -188,40 +187,58 @@ def get_indivs_and_clumps(model, paths, seal_conf_lvl, clump_conf_lvl, overlap):
       - clump_imgs_dct: dictionary mapping image id to list of clump sub-images.
       - ind_seals_dct: dictionary mapping image id to number of individual seals.
     """
-    clump_imgs_dct = {}
-    ind_seals_dct = {}
+    clump_imgs_dct = {} # dictionary of clumps. image id will be the key and a list of clumps will be its value. 
+    ind_seals_dct = {} # number of individual seals 
 
     def intersects(seal, clump):
         seal_x1 = seal['x'] - seal['width'] / 2
         seal_x2 = seal['x'] + seal['width'] / 2
         seal_y1 = seal['y'] - seal['height'] / 2
         seal_y2 = seal['y'] + seal['height'] / 2
+
         clump_x1 = clump['x'] - clump['width'] / 2
         clump_x2 = clump['x'] + clump['width'] / 2
         clump_y1 = clump['y'] - clump['height'] / 2
         clump_y2 = clump['y'] + clump['height'] / 2
-        return not (seal_x2 <= clump_x1 or seal_x1 >= clump_x2 or seal_y2 <= clump_y1 or seal_y1 >= clump_y2)
+
+        return not (
+            seal_x2 <= clump_x1 or
+            seal_x1 >= clump_x2 or
+            seal_y2 <= clump_y1 or
+            seal_y1 >= clump_y2
+        )
 
     for path in paths:
+
         image = Image.open(path)
-        preds = model.predict(path, confidence=min(
-            seal_conf_lvl, clump_conf_lvl), overlap=overlap).json().get('predictions', [])
-        seals = [pred for pred in preds if pred['class'] ==
-                 'seals' and pred['confidence'] > seal_conf_lvl/100]
-        clumps = [pred for pred in preds if pred['class'] ==
-                  'clump' and pred['confidence'] > clump_conf_lvl/100]
-        filtered_seals = [seal for seal in seals if not any(
-            intersects(seal, clump) for clump in clumps)]
+
+        preds = model.predict(path, confidence=min(seal_conf_lvl, clump_conf_lvl), overlap=overlap).json().get('predictions', []) 
+
+        seals = [pred for pred in preds if pred['class'] == 'seals' and pred['confidence'] > seal_conf_lvl / 100]
+        clumps = [pred for pred in preds if pred['class'] == 'clump' and pred['confidence'] > clump_conf_lvl / 100]
+        filtered_seals = [seal for seal in seals if not any(intersects(seal, clump) for clump in clumps)]
+
+        # getting key
         key = Path(path).stem
-        ind_seals_dct[key] = len(filtered_seals)
-        clump_imgs_dct[key] = []
+
+        # adding to individuals dict
+        ind_seals_dct[key] = len(filtered_seals) 
+        
+        # adding to clumps dict
+        clump_imgs_dct[key] = [] 
         for clump in clumps:
             clump_x1 = clump['x'] - clump['width'] / 2
             clump_x2 = clump['x'] + clump['width'] / 2
             clump_y1 = clump['y'] - clump['height'] / 2
             clump_y2 = clump['y'] + clump['height'] / 2
-            subimage = image.crop((clump_x1, clump_y1, clump_x2, clump_y2))
+
+            top_left_clump = (clump_x1, clump_y1)
+            bottom_right_clump = (clump_x2, clump_y2)
+
+            subimage = image.crop((*top_left_clump, *bottom_right_clump))
+            
             clump_imgs_dct[key].append(subimage)
+    
     return clump_imgs_dct, ind_seals_dct
 
 # Get Heuristics from Clump Images
@@ -235,44 +252,43 @@ def get_heuristics(dct):
     avg_g = []
     sd_g = []
     avg_b = []
-    sd_b = []
+    sd_b = [] 
+
+    keys = []
+
     for key, clump_lst in dct.items():
-        for clump in clump_lst:
+
+        for idx, clump in enumerate(clump_lst): 
+        
             width, height = clump.size
+
             widths.append(width)
             heights.append(height)
+
             img_array = np.array(clump)
-            avg_r.append(np.mean(img_array[:, :, 0]))
-            sd_r.append(np.std(img_array[:, :, 0]))
-            avg_g.append(np.mean(img_array[:, :, 1]))
-            sd_g.append(np.std(img_array[:, :, 1]))
-            avg_b.append(np.mean(img_array[:, :, 2]))
-            sd_b.append(np.std(img_array[:, :, 2]))
-    return pd.DataFrame({
-        'width': widths,
-        'height': heights,
-        'avg_r': avg_r,
-        'sd_r': sd_r,
-        'avg_g': avg_g,
-        'sd_g': sd_g,
-        'avg_b': avg_b,
-        'sd_b': sd_b
-    })
+
+            avg_r.append(np.mean(img_array[1, :, :]))
+            sd_r.append(np.std(img_array[1, :, :]))
+            avg_g.append(np.mean(img_array[:, 1, :]))
+            sd_g.append(np.std(img_array[:, 1, :]))
+            avg_b.append(np.mean(img_array[:, :, 1]))
+            sd_b.append(np.std(img_array[:, :, 1]))
+
+            keys.append(key)
+
+    return pd.DataFrame({'key': keys, 'width': widths,
+                        'height': heights, 'avg_r': avg_r, 
+                        'sd_r': sd_r, 'avg_g': avg_g,
+                        'sd_g': sd_g,'avg_b': avg_b,
+                        'sd_b': sd_b})
 
 # Processing for a Cropped Image (no preprocessing)
-def process_cropped_image(image):
+def process_cropped_image(image, model):
     """
     Processes a single cropped image using Roboflow inference and CLI logic.
     It saves the image to a temporary file, runs prediction on it, downloads the annotated image,
     and then uses the CLI functions to count clumps and individual seals and predict a final seal count.
     """
-    # Initialize Roboflow
-    api_key = os.environ.get("ROBOFLOW_API_KEY")
-    if not api_key:
-        raise Exception("ROBOFLOW_API_KEY environment variable is not set.")
-    rf = Roboflow(api_key=api_key)
-    project = rf.workspace().project("elephant-seals-project-mark-1")
-    model = project.version("14").model
 
     # Save the uploaded cropped image to a temporary file
     temp_image_path = "temp_image.jpg"
@@ -307,11 +323,11 @@ def process_cropped_image(image):
         df_heur = get_heuristics(clump_imgs_dct)
         # Load the pre-trained model to predict clump counts.
         clump_model = load('assets/random_forest_mod1.joblib')
-        X = df_heur
+        X = df_heur.drop(columns=['key'])
 
         df_heur['pred_y'] = clump_model.predict(X)
         
-        clump_sums = df_heur.groupby(df_heur.index)['pred_y'].sum().to_dict()
+        clump_sums = df_heur.groupby('key')['pred_y'].sum().to_dict()
     else:
         clump_sums = {}
 

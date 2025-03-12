@@ -1,10 +1,11 @@
-import io
+import io, os
 import base64
 import sys
 from datetime import datetime
 from flask import Flask, request, render_template_string
 from PIL import Image
 from process import process_mosaic_in_memory, process_cropped_image
+from roboflow import Roboflow
 
 app = Flask(__name__)
 
@@ -272,6 +273,14 @@ def index():
 
 @app.route("/process", methods=["POST"])
 def process():
+    # Initialize Roboflow
+    api_key = os.environ.get("ROBOFLOW_API_KEY")
+    if not api_key:
+        raise Exception("ROBOFLOW_API_KEY environment variable is not set.")
+    rf = Roboflow(api_key=api_key)
+    project = rf.workspace().project("elephant-seals-project-mark-1")
+    model = project.version("14").model
+
     if "image" not in request.files:
         return "No file part", 400
     files = request.files.getlist("image")
@@ -297,7 +306,7 @@ def process():
             # processed_image, stats = process_mosaic_in_memory(pil_image)
             pass
         else:
-            processed_image, stats = process_cropped_image(pil_image)
+            processed_image, stats = process_cropped_image(pil_image, model)
 
         # Insert stats at the beginning so newest appear at the top
         new_stats = {
