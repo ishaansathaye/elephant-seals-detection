@@ -43,15 +43,27 @@ Check our our CLI tool for model building and evaluation:
 git clone https://github.com/yourusername/elephant-seals-detection.git
 
 # Navigate to the project directory
-cd elephant-seals-detection
+cd path/to/this/repository
 
 # Create a virtual environment
 python -m venv .venv
 .venv\Scripts\activate
- pip install -r requirements.txt
+
+# Enter src file
+cd src
 
 # Install dependencies
-pip install -r src/requirements.txt
+pip install -r requirements.txt
+
+# Run the application
+python app.py
+```
+
+When rerunning the code, make sure to do the following:
+
+```bash
+# Activate virtual environment 
+.venv\Scripts\activate
 
 # Enter src file
 cd src
