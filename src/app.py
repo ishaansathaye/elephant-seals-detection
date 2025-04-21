@@ -220,7 +220,7 @@ HTML_TEMPLATE = """
         margin-bottom: 20px;
       }
       .inner-glass-bottom {
-        background: rgba(255,255,255,0.05);
+        background: rgba(255,255,255,0.1);
         display: flex;
         justify-content: center;
         border-radius: 12px;
@@ -233,6 +233,37 @@ HTML_TEMPLATE = """
         const carousel = document.getElementById('processedCarousel');
         carousel.classList.toggle('show-boxes');
       }
+      document.addEventListener('DOMContentLoaded', function() {
+        const fileInput = document.getElementById('imageInput');
+        const preview = document.getElementById('preview');
+        const dropZone = document.getElementById('dropZone');
+        function updatePreview() {
+          preview.innerHTML = '';
+          Array.from(fileInput.files).forEach(file => {
+            const img = document.createElement('img');
+            img.src = URL.createObjectURL(file);
+            img.style.width = '50px';
+            img.style.height = '50px';
+            img.style.objectFit = 'cover';
+            img.className = 'rounded';
+            preview.appendChild(img);
+          });
+        }
+        fileInput.addEventListener('change', updatePreview);
+        dropZone.addEventListener('dragover', e => {
+          e.preventDefault();
+          dropZone.classList.add('border', 'border-white');
+        });
+        dropZone.addEventListener('dragleave', () => {
+          dropZone.classList.remove('border', 'border-white');
+        });
+        dropZone.addEventListener('drop', e => {
+          e.preventDefault();
+          dropZone.classList.remove('border', 'border-white');
+          fileInput.files = e.dataTransfer.files;
+          updatePreview();
+        });
+      });
     </script>
   </head>
   <body>
@@ -242,7 +273,7 @@ HTML_TEMPLATE = """
         <div class="glass-panel carousel-panel p-4">
           <div class="inner-glass-top">
             <form method="post" enctype="multipart/form-data" action="/process" onsubmit="showLoading()" class="d-flex align-items-center justify-content-center gap-3">
-              <label for="imageInput" style="cursor:pointer; display:flex; align-items:center; gap:10px; justify-content:center;">
+              <label for="imageInput" id="dropZone" style="cursor:pointer; display:flex; align-items:center; gap:10px; justify-content:center;">
                 <!-- folder icon SVG -->
                 <svg width="24" height="24" fill="white" viewBox="0 0 24 24">
                   <path d="M10 4H2v16h20V6H12l-2-2z"/>
@@ -251,6 +282,7 @@ HTML_TEMPLATE = """
               </label>
               <input id="imageInput" type="file" name="image" multiple required style="display:none;">
               <button type="submit" class="glass-btn">Upload</button>
+              <div id="preview" class="d-flex gap-2 mt-2"></div>
             </form>
           </div>
           {% if image_data %}
