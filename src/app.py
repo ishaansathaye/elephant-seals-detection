@@ -5,7 +5,7 @@ import csv
 from datetime import datetime
 from flask import Flask, request, render_template_string, Response
 from PIL import Image
-from process import process_mosaic_in_memory, process_cropped_image
+from process import process_mosaic_in_memory, process_cropped_image  # now returns base, boxed, stats
 from roboflow import Roboflow
 
 app = Flask(__name__)
@@ -143,6 +143,9 @@ HTML_TEMPLATE = """
         margin: 20px auto;
         display: block;
       }
+      .img-box { display: none !important; }
+      #processedCarousel.show-boxes .img-box { display: block !important; }
+      #processedCarousel.show-boxes .img-no-box { display: none !important; }
     </style>
     <script>
       // On page load, restore toggle state from localStorage
@@ -165,6 +168,10 @@ HTML_TEMPLATE = """
       }
       function showLoading() {
         document.getElementById('loading-message').style.display = 'block';
+      }
+      function toggleBoxes() {
+        const carousel = document.getElementById('processedCarousel');
+        carousel.classList.toggle('show-boxes');
       }
     </script>
   </head>
@@ -191,6 +198,13 @@ HTML_TEMPLATE = """
         <div id="loading-message">Processing your image(s), please wait...</div>
       </div>
       
+      <div class="d-flex justify-content-center mb-3">
+        <div class="form-check form-switch">
+          <input class="form-check-input" type="checkbox" id="showBoxesCheckbox" onchange="toggleBoxes()">
+          <label class="form-check-label" for="showBoxesCheckbox">Show Bounding Boxes</label>
+        </div>
+      </div>
+
       {% if image_data %}
         <h2>Processed Images</h2>
         <!-- Bootstrap Carousel (without auto-cycling) -->
@@ -208,7 +222,8 @@ HTML_TEMPLATE = """
           <div class="carousel-inner">
             {% for img in image_data %}
               <div class="carousel-item {% if loop.index0 == 0 %}active{% endif %}">
-                <img src="data:image/jpeg;base64,{{ img }}" alt="Slide {{ loop.index0 }}">
+                <img src="data:image/jpeg;base64,{{ img.no }}" class="img-no-box d-block w-100" alt="Slide {{ loop.index0 }}">
+                <img src="data:image/jpeg;base64,{{ img.yes }}" class="img-box d-block w-100" alt="Slide {{ loop.index0 }}">
               </div>
             {% endfor %}
           </div>
@@ -305,7 +320,7 @@ def process():
             # final_image, stats = process_mosaic_from_path(tmp_path)
             pass
         else:
-            final_image, stats = process_cropped_image(tmp_path, model)
+            base_img, boxed_img, stats = process_cropped_image(tmp_path, model)
 
         # 3. Remove the temp file right away
         os.remove(tmp_path)
@@ -320,14 +335,19 @@ def process():
         }
         stats_table.insert(0, new_stats)
 
+        # without boxes
         buf = io.BytesIO()
-        final_image = final_image.convert("RGB")
-        final_image.thumbnail((2000, 2000), Image.Resampling.LANCZOS)
-        final_image.save(buf, format="JPEG", quality=75)
-        buf.seek(0)
-        img_bytes = buf.getvalue()
-        img_b64 = base64.b64encode(img_bytes).decode("utf-8")
-        image_data_list.append(img_b64)
+        base_img = base_img.convert("RGB")
+        base_img.thumbnail((2000,2000), Image.Resampling.LANCZOS)
+        base_img.save(buf, format="JPEG", quality=75)
+        b64_no = base64.b64encode(buf.getvalue()).decode("utf-8")
+        buf.seek(0); buf.truncate(0)
+        # with boxes
+        boxed_img = boxed_img.convert("RGB")
+        boxed_img.thumbnail((2000,2000), Image.Resampling.LANCZOS)
+        boxed_img.save(buf, format="JPEG", quality=75)
+        b64_yes = base64.b64encode(buf.getvalue()).decode("utf-8")
+        image_data_list.append({"no": b64_no, "yes": b64_yes})
 
     global processed_images
     processed_images = image_data_list

@@ -299,6 +299,8 @@ def process_cropped_image(image_path, model):
     """
 
     image = Image.open(image_path).convert("RGB")
+    # Keep original image
+    base_image = image.copy()
     draw = ImageDraw.Draw(image)
     try:
         font = ImageFont.truetype("arial.ttf", 300)
@@ -398,5 +400,5 @@ def process_cropped_image(image_path, model):
     
     # Convert back to PIL Image for return
     image = Image.fromarray(cv2.cvtColor(cv_img, cv2.COLOR_BGR2RGB))
-
-    return image, stats_dict
+    boxed_image = image
+    return base_image, boxed_image, stats_dict
