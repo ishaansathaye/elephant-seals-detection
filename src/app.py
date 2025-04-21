@@ -1,4 +1,4 @@
-import io, os
+import io, os, tempfile
 import base64
 import sys
 import csv
@@ -294,16 +294,21 @@ def process():
 
     image_data_list = []
     for file in files:
-        try:
-            pil_image = Image.open(file.stream)
-        except Exception as e:
-            return f"Error opening image: {e}", 400
+        # 1. Write file.stream to a temp file on disk
+        suffix = os.path.splitext(file.filename)[1]
+        with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
+            file.save(tmp)
+            tmp_path = tmp.name
 
+        # 2. Call your CLI‑style functions that expect a path
         if mode == "mosaic":
-            # final_image, stats = process_mosaic_in_memory(pil_image)
+            # final_image, stats = process_mosaic_from_path(tmp_path)
             pass
         else:
-            final_image, stats = process_cropped_image(pil_image, model)
+            final_image, stats = process_cropped_image(tmp_path, model)
+
+        # 3. Remove the temp file right away
+        os.remove(tmp_path)
 
         new_stats = {
             "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),

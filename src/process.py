@@ -181,7 +181,7 @@ def process_mosaic_in_memory(image, patch_size=2000):
 # Get Individual Seals and Clumps
 
 
-def get_indivs_and_clumps(model, paths, seal_conf_lvl, clump_conf_lvl, overlap):
+def get_indivs_and_clumps(model, path, seal_conf_lvl, clump_conf_lvl, overlap):
     """
     Processes a list of image paths (in our case, one image) and returns:
       - clump_imgs_dct: dictionary mapping image id to list of clump sub-images.
@@ -208,36 +208,34 @@ def get_indivs_and_clumps(model, paths, seal_conf_lvl, clump_conf_lvl, overlap):
             seal_y1 >= clump_y2
         )
 
-    for path in paths:
+    image = Image.open(path)
 
-        image = Image.open(path)
+    preds = model.predict(path, confidence=min(seal_conf_lvl, clump_conf_lvl), overlap=overlap).json().get('predictions', []) 
 
-        preds = model.predict(path, confidence=min(seal_conf_lvl, clump_conf_lvl), overlap=overlap).json().get('predictions', []) 
+    seals = [pred for pred in preds if pred['class'] == 'seals' and pred['confidence'] > seal_conf_lvl / 100]
+    clumps = [pred for pred in preds if pred['class'] == 'clump' and pred['confidence'] > clump_conf_lvl / 100]
+    filtered_seals = [seal for seal in seals if not any(intersects(seal, clump) for clump in clumps)]
 
-        seals = [pred for pred in preds if pred['class'] == 'seals' and pred['confidence'] > seal_conf_lvl / 100]
-        clumps = [pred for pred in preds if pred['class'] == 'clump' and pred['confidence'] > clump_conf_lvl / 100]
-        filtered_seals = [seal for seal in seals if not any(intersects(seal, clump) for clump in clumps)]
+    # getting key
+    key = Path(path).stem
 
-        # getting key
-        key = Path(path).stem
+    # adding to individuals dict
+    ind_seals_dct[key] = len(filtered_seals) 
+    
+    # adding to clumps dict
+    clump_imgs_dct[key] = [] 
+    for clump in clumps:
+        clump_x1 = clump['x'] - clump['width'] / 2
+        clump_x2 = clump['x'] + clump['width'] / 2
+        clump_y1 = clump['y'] - clump['height'] / 2
+        clump_y2 = clump['y'] + clump['height'] / 2
 
-        # adding to individuals dict
-        ind_seals_dct[key] = len(filtered_seals) 
+        top_left_clump = (clump_x1, clump_y1)
+        bottom_right_clump = (clump_x2, clump_y2)
+
+        subimage = image.crop((*top_left_clump, *bottom_right_clump))
         
-        # adding to clumps dict
-        clump_imgs_dct[key] = [] 
-        for clump in clumps:
-            clump_x1 = clump['x'] - clump['width'] / 2
-            clump_x2 = clump['x'] + clump['width'] / 2
-            clump_y1 = clump['y'] - clump['height'] / 2
-            clump_y2 = clump['y'] + clump['height'] / 2
-
-            top_left_clump = (clump_x1, clump_y1)
-            bottom_right_clump = (clump_x2, clump_y2)
-
-            subimage = image.crop((*top_left_clump, *bottom_right_clump))
-            
-            clump_imgs_dct[key].append(subimage)
+        clump_imgs_dct[key].append(subimage)
     
     return clump_imgs_dct, ind_seals_dct
 
@@ -283,38 +281,29 @@ def get_heuristics(dct):
                         'sd_b': sd_b})
 
 # Processing for a Cropped Image (no preprocessing)
-def process_cropped_image(image, model):
+def process_cropped_image(image_path, model):
     """
     Processes a single cropped image using Roboflow inference and CLI logic.
     It saves the image to a temporary file, runs prediction on it, downloads the annotated image,
     and then uses the CLI functions to count clumps and individual seals and predict a final seal count.
     """
 
-    # Save the uploaded cropped image to a temporary file
-    temp_image_path = "temp_image.jpg"
-    image.save(temp_image_path)
-
-    # Run prediction on the image using Roboflow
-    # result = model.predict(temp_image_path, confidence=25, overlap=30)
-    # result_json = result.json()
-    # annotated_image_url = result_json.get("image_path")
-    # if not annotated_image_url:
-    #     os.remove(temp_image_path)
-    #     raise Exception("Annotated image URL not returned from Roboflow.")
-
-    # Download the annotated image
-    # response = requests.get(annotated_image_url)
-    # if response.status_code != 200:
-    #     os.remove(temp_image_path)
-    #     raise Exception(
-    #         f"Failed to download annotated image, status code: {response.status_code}")
-    # final_image = Image.open(io.BytesIO(response.content))
+    image = Image.open(image_path).convert("RGB")
+    draw = ImageDraw.Draw(image)
+    try:
+        font = ImageFont.truetype("arial.ttf", 20)
+    except IOError:
+        font = ImageFont.load_default()
 
     # Use CLI logic to get clump and individual counts on this single image.
     # We simulate a list of one image path.
-    paths = [temp_image_path]
-    clump_imgs_dct, ind_seals_dct = get_indivs_and_clumps(
-        model, paths, seal_conf_lvl=20, clump_conf_lvl=40, overlap=20)
+    clump_imgs_dct, ind_seals_dct, seal_boxes_dct, clump_boxes_dct = get_indivs_and_clumps(
+        model, 
+        image_path,
+        seal_conf_lvl=20, 
+        clump_conf_lvl=40, 
+        overlap=20
+    )
     
     clump_imgs_dct = {key: value for key, value in clump_imgs_dct.items() if len(value) >= 10}
 
@@ -346,6 +335,16 @@ def process_cropped_image(image, model):
         f"Total seals: {stats_dict['seals']}")
     sys.stdout.flush()
 
-    os.remove(temp_image_path)
-    # return final_image, stats_dict
+    # Define key for drawing boxes
+    key = Path(image_path).stem
+
+    # Draw boxes around individual seals in green
+    for box in seal_boxes_dct.get(key, []):
+        draw.rectangle(box, outline="green", width=3)
+    # Draw boxes around clumps in red with count labels
+    for box in clump_boxes_dct.get(key, []):
+        draw.rectangle(box, outline="red", width=3)
+        count = clump_sums.get(key, 0)
+        draw.text((box[0], box[1]), str(int(count)), fill="red", font=font)
+
     return image, stats_dict
