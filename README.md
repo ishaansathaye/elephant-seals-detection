@@ -12,7 +12,7 @@ This web application is designed to detect elephant seals in images using machin
 
 - Image upload functionality
 - Drone image elephant seal detection
-- Visualization of detection results (future feature)
+- Visualization of detection results
 - User-friendly interface
 
 ## Deployment
@@ -67,7 +67,11 @@ cd path/to/this/repository
 
 # Create a virtual environment
 python -m venv .venv
+# Activate the virtual environment
+# For Windows
 .venv\Scripts\activate
+# For macOS/Linux
+source .venv/bin/activate
 
 # Enter src file
 cd src
