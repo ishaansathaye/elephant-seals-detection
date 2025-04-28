@@ -10,10 +10,10 @@ This web application is designed to detect elephant seals in images using machin
 
 ## Features
 
-- Image upload functionality
+- Multi-image upload functionality
 - Drone image elephant seal detection
-- Visualization of detection results
-- User-friendly interface
+- Visualization of detection results with bounding boxes
+- User-friendly interface with panning and zooming capabilities
 
 ## Deployment
 
@@ -30,9 +30,6 @@ Check out our CLI tool for model building and evaluation:
 - Frontend: HTML, CSS, JavaScript
 - Backend: Python (Flask/Django)
 - ML Framework: Roboflow, Scikit-learn
-- Future Technologies:
-    - Frontend: React.js
-    - Containerization: Docker
 
 ## Installation
 
