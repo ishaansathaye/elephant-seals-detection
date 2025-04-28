@@ -275,14 +275,17 @@ HTML_TEMPLATE = """
             }
         </style>
         <script>
-            function toggleBoxes() {
-                const carousel = document.getElementById('processedCarousel');
-                carousel.classList.toggle('show-boxes');
-            }
-            // Zoom logic
+            // Global pan/zoom state
             let scale = 1;
             const minScale = 0.5;
             const maxScale = 3;
+            let panX = 0, panY = 0;
+
+            function toggleBoxes() {
+                const carousel = document.getElementById('processedCarousel');
+                carousel.classList.toggle('show-boxes');
+                updateImageScale();
+            }
             function updateImageScale() {
                 // Only update the currently active carousel-item's images
                 const carousel = document.getElementById('processedCarousel');
@@ -292,7 +295,7 @@ HTML_TEMPLATE = """
                 // Both .img-no-box and .img-box
                 const imgs = activeItem.querySelectorAll('.img-no-box, .img-box');
                 imgs.forEach(img => {
-                    img.style.transform = `scale(${scale})`;
+                    img.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
                     img.style.transition = 'transform 0.2s';
                     img.style.transformOrigin = 'center center';
                 });
@@ -360,14 +363,14 @@ HTML_TEMPLATE = """
               function onMouseDown(e) {
                 e.preventDefault();
                 isPanning = true;
-                img = this.querySelector('img');
+                // Select the correct visible image based on bounding-boxes toggle
+                const showBoxes = document.getElementById('showBoxesCheckbox').checked;
+                img = this.querySelector(showBoxes ? 'img.img-box' : 'img.img-no-box');
                 startX = e.clientX;
                 startY = e.clientY;
-                // Get current translate values
-                const style = window.getComputedStyle(img);
-                const matrix = new DOMMatrixReadOnly(style.transform);
-                originX = matrix.m41;
-                originY = matrix.m42;
+                // Get current translate values from global panX/panY
+                originX = panX;
+                originY = panY;
                 document.body.style.cursor = 'grabbing';
               }
 
@@ -376,7 +379,9 @@ HTML_TEMPLATE = """
                 e.preventDefault();
                 const dx = e.clientX - startX;
                 const dy = e.clientY - startY;
-                img.style.transform = `translate(${originX + dx}px, ${originY + dy}px) scale(${scale})`;
+                panX = originX + dx;
+                panY = originY + dy;
+                img.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
               }
 
               function onMouseUp(e) {
