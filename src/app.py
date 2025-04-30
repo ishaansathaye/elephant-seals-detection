@@ -51,7 +51,7 @@ HTML_TEMPLATE = """
                 user-select: none;
                 -webkit-user-drag: none;
                 transform-origin: center center;
-                transition: transform 0.1s;
+                will-change: transform;
             }
             .img-wrapper.grabbing img {
                 cursor: grabbing;
@@ -295,8 +295,7 @@ HTML_TEMPLATE = """
                 // Both .img-no-box and .img-box
                 const imgs = activeItem.querySelectorAll('.img-no-box, .img-box');
                 imgs.forEach(img => {
-                    img.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
-                    img.style.transition = 'transform 0.2s';
+                    img.style.transform = `translate3d(${panX}px, ${panY}px, 0) scale(${scale})`;
                     img.style.transformOrigin = 'center center';
                 });
             }
@@ -311,6 +310,12 @@ HTML_TEMPLATE = """
                     scale = Math.max(scale - 0.1, minScale);
                     updateImageScale();
                 }
+            }
+            function resetView() {
+                scale = 1;
+                panX = 0;
+                panY = 0;
+                updateImageScale();
             }
             // Update zoom when carousel slides
             document.addEventListener('DOMContentLoaded', function() {
@@ -381,7 +386,7 @@ HTML_TEMPLATE = """
                 const dy = e.clientY - startY;
                 panX = originX + dx;
                 panY = originY + dy;
-                img.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
+                img.style.transform = `translate3d(${panX}px, ${panY}px, 0) scale(${scale})`;
               }
 
               function onMouseUp(e) {
@@ -460,6 +465,7 @@ HTML_TEMPLATE = """
                             </div>
                             <button class="glass-btn" id="zoomInBtn" type="button" onclick="zoomIn()" title="Zoom In">+</button>
                             <button class="glass-btn" id="zoomOutBtn" type="button" onclick="zoomOut()" title="Zoom Out">&minus;</button>
+                            <button class="glass-btn" id="resetBtn" type="button" onclick="resetView()" title="Reset View">&#8634;</button>
                         </div>
                     </div>
                 </div>
