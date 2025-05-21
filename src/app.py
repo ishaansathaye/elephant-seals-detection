@@ -327,6 +327,26 @@ HTML_TEMPLATE = """
                 padding: 20px;
                 margin-top: 20px;
             }
+            
+            /* Scrollbar styling */
+            .history-panel::-webkit-scrollbar {
+                width: 12px;
+            }
+
+            .history-panel::-webkit-scrollbar-track {
+                background: rgba(255,255,255,0.2);
+                border-radius: 6px;
+            }
+
+            .history-panel::-webkit-scrollbar-thumb {
+                background: rgba(255,255,255,0.6);
+                border-radius: 6px;
+                border: 2px solid rgba(255,255,255,0.2);
+            }
+
+            .history-panel::-webkit-scrollbar-thumb:hover {
+                background: rgba(255,255,255,0.8);
+            }
         </style>
         <script>
             // Global pan/zoom state
