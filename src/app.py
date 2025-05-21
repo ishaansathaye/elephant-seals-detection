@@ -244,20 +244,17 @@ HTML_TEMPLATE = """
             .glass-panel.carousel-panel {
                 flex: 0 0 50%;
                 max-width: 50%;
-                padding-bottom: 40px;
+                max-height: calc(100vh - 180px);
             }
 
             .glass-panel.history-panel {
                 flex: 0 0 45%;
                 max-width: 50%;
                 margin-right: 10px;
-                max-height: calc(100vh - 200px);
-                overflow-y: auto;
+                max-height: calc(100vh - 180px);
             }
             .history-panel {
-                /* overflow-x: auto; */
                 overflow-y: auto;
-                /* max-height: 600px; */
             }
             .history-panel table {
                 width: auto;
