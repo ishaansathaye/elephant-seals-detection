@@ -18,6 +18,14 @@ stats_table = []
 # Global list for processed images (each entry is a base64 string)
 processed_images = []
 
+# Beach-specific Roboflow inference parameters
+BEACH_PARAMS = {
+    "AL": {"model": "14", "seal_conf_lvl": 20, "clump_conf_lvl": 40, "overlap": 20, "two-prong_threshold": 10},
+    "LS": {"model": "14", "seal_conf_lvl": 20, "clump_conf_lvl": 40, "overlap": 20, "two-prong_threshold": 10},
+    "LN": {"model": "16", "seal_conf_lvl": 42, "clump_conf_lvl": 74, "overlap": 18, "two-prong_threshold": float("inf")},
+    "DC": {"model": "16", "seal_conf_lvl": 14, "clump_conf_lvl": 58, "overlap": 42, "two-prong_threshold": float("inf")},
+}
+
 HTML_TEMPLATE = """
 <!doctype html>
 <html>
@@ -60,7 +68,7 @@ HTML_TEMPLATE = """
                 margin: 0;
                 padding: 0;
                 overflow: hidden;
-                height: 100%;
+                min-height: 100%;
             }
             /* Blurred background layer */
             body::before {
@@ -89,11 +97,11 @@ HTML_TEMPLATE = """
                 max-width: 1400px;
                 margin: 40px auto;
                 padding: 0;
+                padding-bottom: 40px;
                 background: transparent;
             }
             h1, h2, h3 {
                 text-align: center;
-                margin-bottom: 20px;
                 color: #fff;
             }
             p {
@@ -216,6 +224,19 @@ HTML_TEMPLATE = """
                 flex: 1 1 48%;
                 margin: 10px;
             }
+            .title-panel {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                width: fit-content;
+                max-width: none;
+                margin: 20px auto 10px auto;
+                padding: 1rem 2rem;
+                height: auto;
+                line-height: 1.2;
+                backdrop-filter: blur(10px);
+                border-radius: 15px;
+            }
             .carousel-panel .glass-panel {
                 background: rgba(255,255,255,0.10) !important;
                 backdrop-filter: blur(10px) !important;
@@ -223,15 +244,20 @@ HTML_TEMPLATE = """
             .glass-panel.carousel-panel {
                 flex: 0 0 50%;
                 max-width: 50%;
+                padding-bottom: 40px;
             }
 
             .glass-panel.history-panel {
                 flex: 0 0 45%;
                 max-width: 50%;
                 margin-right: 10px;
+                max-height: calc(100vh - 200px);
+                overflow-y: auto;
             }
             .history-panel {
-                overflow-x: auto;
+                /* overflow-x: auto; */
+                overflow-y: auto;
+                /* max-height: 600px; */
             }
             .history-panel table {
                 width: auto;
@@ -254,19 +280,50 @@ HTML_TEMPLATE = """
             .glass-btn:hover {
                 background: rgba(255,255,255,0.3);
             }
+            /* Glassy dropdown styling */
+            .glass-select {
+                background: rgba(255,255,255,0.2);
+                border: 1px solid rgba(255,255,255,0.4);
+                color: #fff;
+                padding: 5px 10px;
+                border-radius: 8px;
+                appearance: none;
+                -webkit-appearance: none;
+                -moz-appearance: none;
+                width: auto;
+                min-width: 150px;
+            }
+            .glass-select option {
+                background: rgba(0,0,0,0.5);
+                color: #fff;
+            }
+            .glass-select-wrapper {
+                position: relative;
+                display: inline-block;
+            }
+            .glass-select-wrapper::after {
+                content: "▼";
+                position: absolute;
+                top: 50%;
+                right: 10px;
+                transform: translateY(-50%);
+                pointer-events: none;
+                color: #fff;
+                font-size: 0.7em;
+            }
             /* Inner glass containers */
             .inner-glass-top {
                 background: rgba(255,255,255, 0.05);
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                gap: 20px;
+                gap: 10px;
                 border-radius: 12px;
-                padding: 20px;
+                padding: 20px 20px 10px 20px; /* added extra top padding */
                 margin-bottom: 20px;
             }
             .inner-glass-bottom {
-                background: rgba(255,255,255,0.1);
+                background: rgba(255,255,255,0.05);
                 display: flex;
                 justify-content: center;
                 border-radius: 12px;
@@ -401,29 +458,48 @@ HTML_TEMPLATE = """
               document.addEventListener('mousemove', onMouseMove);
               document.addEventListener('mouseup', onMouseUp);
             });
+            
+            // Initialize all [data-bs-toggle="tooltip"] elements
+            document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
+                new bootstrap.Tooltip(el);
+            });
         </script>
     </head>
     <body>
         <div class="container">
-            <h1>Elephant Seal Detector</h1>
+            <div class="glass-panel title-panel p-3 mb-4">
+                <h1>Elephant Seal Detector</h1>
+            </div>
             <div class="main-content d-flex justify-content-between">
-                <div class="glass-panel carousel-panel p-4">
+                <div class="glass-panel carousel-panel p-4 mb-4">
                     <div class="inner-glass-top">
-                        <form method="post" enctype="multipart/form-data" action="/process" onsubmit="showLoading()" class="d-flex align-items-center justify-content-center gap-3">
-                            <label for="imageInput" id="dropZone" style="cursor:pointer; display:flex; align-items:center; gap:10px; justify-content:center;">
-                                <!-- folder icon SVG -->
-                                <svg width="24" height="24" fill="white" viewBox="0 0 24 24">
-                                    <path d="M10 4H2v16h20V6H12l-2-2z"/>
-                                </svg>
-                                <span style="font-size:1.2em; color:white;">Drag &amp; drop files or click to upload</span>
-                            </label>
-                            <input id="imageInput" type="file" name="image" multiple required style="display:none;">
-                            <button type="submit" class="glass-btn">Upload</button>
+                        <form method="post" enctype="multipart/form-data" action="/process" onsubmit="showLoading()" class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+                            <div class="d-flex justify-content-between align-items-center w-100" style="gap: 1rem;">
+                              <label for="imageInput" id="dropZone" style="cursor:pointer; display:flex; align-items:center; gap:10px;">
+                                  <!-- folder icon SVG -->
+                                  <svg width="24" height="24" fill="white" viewBox="0 0 24 24">
+                                      <path d="M10 4H2v16h20V6H12l-2-2z"/>
+                                  </svg>
+                                  <div style="font-size:1.2em; color:white; display:block; line-height:1.4;">
+                                    Drag &amp; Drop Files<br>or Click to Upload
+                                  </div>
+                              </label>
+                              <div class="d-flex align-items-center" style="gap:1.5rem;">
+                                <div class="glass-select-wrapper">
+                                  <select id="beachSelect" name="beach" class="glass-select">
+                                    {% for b in beach_params.keys() %}
+                                        <option value="{{ b }}">{{ b }}</option>
+                                    {% endfor %}
+                                  </select>
+                                </div>
+                                <button type="submit" class="glass-btn">Upload</button>
+                              </div>
+                              <input id="imageInput" type="file" name="image" multiple required style="display:none;">
+                            </div>
                             <div id="preview" class="d-flex gap-2 mt-2"></div>
                         </form>
                     </div>
                     {% if image_data %}
-                        <h2>Processed Images</h2>
                         <!-- Bootstrap Carousel (without auto-cycling) -->
                         <div id="processedCarousel" class="carousel slide mx-auto" style="max-width: 100%;">
                             <!-- Indicators -->
@@ -479,7 +555,7 @@ HTML_TEMPLATE = """
                         <table>
                             <thead>
                                 <tr>
-                                    <th>Timestamp</th>
+                                    <th>Time</th>
                                     <th>Filename</th>
                                     <th># Seals</th>
                                     <th>Male</th>
@@ -516,6 +592,7 @@ HTML_TEMPLATE = """
 def index():
     return render_template_string(
         HTML_TEMPLATE,
+        beach_params=BEACH_PARAMS,
         stats_table=stats_table,
         image_data=processed_images
     )
@@ -528,9 +605,14 @@ def process():
     if not api_key:
         raise Exception("ROBOFLOW_API_KEY environment variable is not set.")
     
+    # read which beach they picked (default to first key)
+    beach = request.form.get("beach",
+                next(iter(BEACH_PARAMS.keys())))
+    params = BEACH_PARAMS.get(beach)
+    
     rf = Roboflow(api_key=api_key)
     project = rf.workspace().project("elephant-seals-project-mark-1")
-    model = project.version("14").model
+    model = project.version(params["model"]).model
 
     if "image" not in request.files:
         return "No file part", 400
@@ -547,7 +629,12 @@ def process():
             file.save(tmp)
             tmp_path = tmp.name
 
-        base_img, boxed_img, stats = process_cropped_image(tmp_path, model)
+        base_img, boxed_img, stats = process_cropped_image(tmp_path, model,
+            seal_conf_lvl=params["seal_conf_lvl"],
+            clump_conf_lvl=params["clump_conf_lvl"],
+            overlap=params["overlap"],
+            two_prong_thresh=params["two-prong_threshold"]
+        )
 
         # Remove the temp file right away
         os.remove(tmp_path)
@@ -583,6 +670,7 @@ def process():
 
     return render_template_string(
         HTML_TEMPLATE,
+        beach_params=BEACH_PARAMS,
         image_data=processed_images,
         stats_table=stats_table
     )

@@ -118,7 +118,7 @@ def get_heuristics(dct):
                         'sd_b': sd_b})
 
 # Processing for a Cropped Image (no preprocessing)
-def process_cropped_image(image_path, model):
+def process_cropped_image(image_path, model, seal_conf_lvl, clump_conf_lvl, overlap, two_prong_thresh):
     """
     Processes a single cropped image using Roboflow inference and CLI logic.
     It saves the image to a temporary file, runs prediction on it, downloads the annotated image,
@@ -139,12 +139,12 @@ def process_cropped_image(image_path, model):
     clump_imgs_dct, ind_seals_dct, seal_boxes_dct, clump_boxes_dct = get_indivs_and_clumps(
         model, 
         image_path,
-        seal_conf_lvl=20, 
-        clump_conf_lvl=40, 
-        overlap=20
+        seal_conf_lvl=seal_conf_lvl,
+        clump_conf_lvl=clump_conf_lvl,
+        overlap=overlap
     )
     
-    clump_imgs_dct = {key: value for key, value in clump_imgs_dct.items() if len(value) >= 10}
+    clump_imgs_dct = {key: value for key, value in clump_imgs_dct.items() if len(value) >= two_prong_thresh}
 
     # Get heuristics from the clump images
     if clump_imgs_dct:
@@ -155,12 +155,6 @@ def process_cropped_image(image_path, model):
 
         df_heur['pred_y'] = clump_model.predict(X)
         counts = df_heur['pred_y'].tolist()
-
-        # # print the entire df_heur DataFrame
-        # print(df_heur)
-        # # print column names
-        # print(df_heur.columns)
-        # sys.stdout.flush()
         
         clump_sums = df_heur.groupby('key')['pred_y'].sum().to_dict()
     else:
