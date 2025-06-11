@@ -1,104 +1,107 @@
-# Elephant Seals Image Detection Web App
+# Elephant Seals Detection Web App
 
 <p align="center">
-    <img src="./images/app.png" alt="Elephant Seals Detection App">
+  <img src="./images/app.png" alt="Elephant Seals Detection App" width="600">
 </p>
-
-## Overview
-
-This web application is designed to detect elephant seals in images using machine learning models. The app provides a user-friendly interface for uploading images and visualizing detection results.
-
-## Features
-
-- Multi-image upload functionality
-- Drone image elephant seal detection
-- Visualization of detection results with bounding boxes
-- User-friendly interface with panning and zooming capabilities
-
-## Deployment
-
-- Currently deployed on Free Tier of Render:
-  - [Elephant Seals Detection App](https://elephant-seals-detection.onrender.com)
-
-  ## CLI Tool
-
-Check out our CLI tool for model building and evaluation:
-- [Elephant Seals CLI Tool](https://github.com/brandonhjkim/elephant-seals-CLI)
-
-## Technologies Used
-
-- Frontend: HTML, CSS, JavaScript
-- Backend: Python (Flask/Django)
-- ML Framework: Roboflow, Scikit-learn
-
-## Installation
-
-If you don't have Python installed:
-
-1. Visit the official Python website: [https://www.python.org/downloads/](https://www.python.org/downloads/)
-2. Download a version within **3.8 to 3.12** for your operating system 
-3. Run the installer and **check the box** that says `Add Python to PATH` before clicking `Install Now`.
-4. Verify the installation:
-   - Open a terminal (Command Prompt, PowerShell, or Terminal)
-   - Type:
-     ```sh
-     python --version
-     ```
-   - You should see something like `Python 3.x.x` (where `x.x` is your version).
 
 ---
 
-First, Upload your API Key (personal key from roboflow)
-1. create a .env file in repository
-2. Add to the file `ROBOFLOW_API_KEY={YOUR API KEY HERE}`
-3. Save the file
+## 🚀 Overview
 
-To Initialize and run for the first time... 
+This web app automatically detects and counts central coast elephant seals in aerial images.
+
+- Multi-image upload (JPEG and PNG)  
+- Real-time detection via Roboflow + custom “de-clumpifier”  
+- Interactive carousel, zoom, and pan UI  
+- Downloadable CSV of results  
+
+---
+
+## 🛠 Prerequisites
+
+Before you begin, ensure your system has:
+
+- **Python 3.8 – 3.12**  
+- **pip** package manager  
+- A **Roboflow API Key** (free at https://roboflow.com)
+
+---
+
+## 🐍 Installing Python
+
+If you don't already have Python:
+
+1. Visit the official download page: https://www.python.org/downloads/  
+2. Choose a version between 3.8 and 3.12 for your operating system.  
+3. Download and run the installer.  
+   - **Windows users:** check “Add Python to PATH” before installing.  
+4. Verify in a terminal:
+   ```bash
+   python --version
+   # Expected output: Python 3.x.x
+   ```
+
+---
+
+## 📥 Cloning & Installing Dependencies
+
+Open a terminal and run these copy‑and‑paste commands:
 
 ```bash
-# Clone the repository
+# 1) Clone the repo to your local machine
 git clone https://github.com/yourusername/elephant-seals-detection.git
 
-# Navigate to the project directory
-cd path/to/this/repository
+# 2) Change into the project directory
+cd elephant-seals-detection
 
-# Create a virtual environment
+# 3) Create a Python virtual environment (isolated workspace)
 python -m venv .venv
-# Activate the virtual environment
-# For Windows
-.venv\Scripts\activate
-# For macOS/Linux
+
+# 4) Activate the virtual environment:
+# macOS/Linux:
 source .venv/bin/activate
+# Windows (PowerShell):
+.venv\Scripts\Activate.ps1
 
-# Enter src file
-cd src
-
-# Install dependencies
+# 5) Upgrade pip and install requirements
+pip install --upgrade pip
 pip install -r requirements.txt
-
-# Run the application
-python app.py
 ```
 
-When rerunning the code, make sure to do the following:
+---
+
+## 🔧 Configuration
+
+Create a `.env` file in the project root to supply your Roboflow key:
 
 ```bash
-# Activate virtual environment 
-.venv\Scripts\activate
+# while in the repository root:
+echo "ROBOFLOW_API_KEY=YOUR_API_KEY_HERE" > .env
+```
 
-# Enter src file
+---
+
+## ▶️ Running the Web App
+
+```bash
+# 1) Enter the source directory
 cd src
 
-# Run the application
+# 2) Launch the Flask server
 python app.py
 ```
 
-## Usage
+Open your browser to **http://localhost:5000** to access the app.
 
-1. Start the application
-2. Upload an image containing elephant seals
-3. View the detection results
+---
 
-## Contributing
+## 🖥️ Using the CLI Tool
+
+
+Check out our CLI tool for model building and evaluation: [Elephant Seals CLI Tool](https://github.com/brandonhjkim/elephant-seals-CLI)
+
+---
+
+## 🤝 Contributing
 
 Contributions are welcome, however this project is currently not accepting pull requests. If you have suggestions or improvements, please open an issue.
